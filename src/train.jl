@@ -5,12 +5,12 @@ include("dataloader.jl")
 include("model.jl")
 include("normalization.jl")
 
-function train_model_on_data(data::AbstractArray{T,3}; n_epochs=2, batchsize=32) where T <: AbstractFloat
+function train_model_on_data(data::AbstractArray{T,3}; n_epochs=2, batchsize=32, σ_noise=0.5) where T <: AbstractFloat
     learning_rate = 0.5
 
     data_normed = normalize(data)
 
-    dl = DataLoaderLES(data_normed; batchsize=batchsize, nbatches=4)
+    dl = DataLoaderLES(data_normed; batchsize=batchsize, nbatches=4, σ_noise=σ_noise)
 
     Nf = 5  # filter size in model convolutions
     Nc = 6  # number of "channels" in model convolutions
@@ -22,7 +22,7 @@ function train_model_on_data(data::AbstractArray{T,3}; n_epochs=2, batchsize=32)
 
     # use a single batch to evaluate the model
     function evalcb()
-        for valid_batch in DataLoaderLES(data; nbatches=1, batchsize=batchsize)
+        for valid_batch in DataLoaderLES(data; nbatches=1, batchsize=batchsize, σ_noise=σ_noise)
             x_valid, y_valid = valid_batch
             @show(lossfn(x_valid, y_valid))
         end
