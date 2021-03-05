@@ -1,4 +1,5 @@
-### A Pluto.jl notebook ### # v0.12.20
+### A Pluto.jl notebook ###
+# v0.12.20
 
 using Markdown
 using InteractiveUtils
@@ -10,10 +11,6 @@ begin
 	import Flux
 	import Statistics
 end
-
-struct NormalizedArray <: AbstractArray{T,3} where T
-
-
 
 # ╔═╡ effedcd8-6ae5-11eb-3da8-a17cb77d9331
 begin
