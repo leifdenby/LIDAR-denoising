@@ -1,5 +1,7 @@
 # LIDAR denoising
 
+[![LIDAR-denoising](https://github.com/leifdenby/LIDAR-denoising/actions/workflows/main.yml/badge.svg)](https://github.com/leifdenby/LIDAR-denoising/actions/workflows/main.yml)
+
 This code base is using the Julia Language and [DrWatson](https://juliadynamics.github.io/DrWatson.jl/stable/)
 to make a reproducible scientific project named
 > LIDAR denoising
