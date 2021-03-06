@@ -6,7 +6,7 @@ include(srcdir("ncfile.jl"))
 
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 using WeightsAndBiasLogger
-using Debugger: @bp, @run
+using Logging: NullLogger
 
 
 function main()
@@ -32,6 +32,7 @@ function main()
             arg_type = Bool
             help = "Log to Weight & Biases"
             default = false
+            action => :store_true
     end
     args = parse_args(argparser)
 
@@ -39,7 +40,9 @@ function main()
     if args["log-to-wandb"]
         logger = WBLogger(project="LIDARdenoising.jl")
         config!(logger, args)
+    else
+        logger = NullLogger()
     end
-    trained_model = train_model_on_data(data; lr=args["lr"], n_epochs=args["n-epochs"])
+    trained_model = train_model_on_data(data; lr=args["lr"], n_epochs=args["n-epochs"], logger=logger)
 end
-@run main()
+main()
