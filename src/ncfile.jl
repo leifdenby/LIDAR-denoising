@@ -16,7 +16,7 @@ function load_data(filename; z_max=nothing, dtype=Float32)
     da = ds["qv"][:,:,:,1]
 
     if z_max != nothing
-        k_max = argmax(z_grid .< z_max)
+        k_max = argmax(z_grid .> z_max)-1
         z_grid = z_grid[1:k_max,:,:]
         da = da[1:k_max,:,:]
     end
