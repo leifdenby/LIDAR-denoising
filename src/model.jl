@@ -1,3 +1,4 @@
+using Flux
 
 begin
     N = 256

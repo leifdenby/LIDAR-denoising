@@ -1,3 +1,4 @@
+using Flux: gpu
 include("noise.jl")
 
 

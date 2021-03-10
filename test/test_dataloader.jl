@@ -12,7 +12,7 @@ x = rand(Float32, (nz, ny, nx))
 nbatches = 8
 batchsize = 50
 
-dl = DataLoaderLES(x; batchsize=batchsize, nbatches=nbatches)
+dl = DataLoaderLES(x; batchsize=batchsize, nbatches=nbatches, σ_noise=0.5)
 @test length(dl) == nbatches
 
 for batch in dl
