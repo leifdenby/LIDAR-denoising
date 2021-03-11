@@ -35,7 +35,7 @@ function main()
             default = false
             action => :store_true
         "--noise-level"
-            arg_type = Float32
+            arg_type = Float64
             help = "σ_noise level"
             default = 0.5
     end
