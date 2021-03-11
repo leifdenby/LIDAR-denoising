@@ -423,3 +423,6 @@ wandb/
 
 # plots from tests
 test/*.png
+
+# saved model weights
+*.bson

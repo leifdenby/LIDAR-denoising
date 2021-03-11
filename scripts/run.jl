@@ -4,10 +4,13 @@ using DrWatson: @quickactivate, srcdir
 include(srcdir("train.jl"))
 include(srcdir("ncfile.jl"))
 include(srcdir("plot.jl"))
+include(srcdir("model.jl"))
 
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
-using WeightsAndBiasLogger
+using WeightsAndBiasLogger: config!, wandb, WBLogger
 using Logging: NullLogger
+using BSON: @load, @save
+import Flux
 
 
 function main()
@@ -38,6 +41,14 @@ function main()
             arg_type = Float64
             help = "σ_noise level"
             default = 0.5
+        "--pretrained-model"
+            arg_type = String
+            default = nothing
+            help = "Load pretrained model as starting point for training"
+        "--save-model-to"
+            arg_type = String
+            default = nothing
+            help = "Save trained model to given filename"
     end
     args = parse_args(argparser)
 
@@ -48,6 +59,28 @@ function main()
     else
         logger = NullLogger()
     end
-    trained_model = train_model_on_data(data; lr=args["lr"], n_epochs=args["n-epochs"], logger=logger, σ_noise=args["noise-level"])
+
+    Nf = 5  # filter size in model convolutions
+    Nc = 6  # number of "channels" in model convolutions
+    model = build_model(Nf, Nc)
+
+    if args["pretrained-model"] != nothing
+        fn = args["pretrained-model"]
+        @load fn weights
+        Flux.loadparams!(model, weights)
+        @info "model weights loaded from $fn"
+    end
+
+    trained_model = train_model_on_data(model, data; lr=args["lr"], n_epochs=args["n-epochs"], logger=logger, σ_noise=args["noise-level"])
+
+    if args["save-model-to"] != nothing
+        fn = args["save-model-to"]
+        weights = Flux.params(trained_model)
+        @save fn weights
+        @info "model weights saved to $fn"
+        if args["log-to-wandb"]
+            wandb.save(fn)
+        end
+    end
 end
 main()

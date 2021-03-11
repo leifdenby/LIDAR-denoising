@@ -14,20 +14,20 @@ if has_cuda() # Check if CUDA is available
     CUDA.allowscalar(false)
 end
 
-function train_model_on_data(data::AbstractArray{T,3}; n_epochs=2, batchsize=32, σ_noise=0.5, lr=0.5, logger=ConsoleLogger()) where T <: AbstractFloat
+function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchsize=32, σ_noise=0.5, lr=0.5, logger=ConsoleLogger()) where T <: AbstractFloat
     data_normed = normalize(data)
+    model = model |> gpu
 
     dl_train = DataLoaderLES(data_normed; batchsize=batchsize, nbatches=4, σ_noise=σ_noise)
 
-    Nf = 5  # filter size in model convolutions
-    Nc = 6  # number of "channels" in model convolutions
-    model = build_model(Nf, Nc) |> gpu
-
-    # plot with initial model
-    plot_example(data, model, σ_noise, logger)
+    if data isa GriddedData3D
+        # plot with initial model
+        plot_example(data, model, σ_noise, logger; label="starting model")
+    end
 
     function lossfn(x, y)
         y_hat = model(gpu(x))
+        # TODO: calculate cropping in loss function from model
         return Flux.Losses.mse(y_hat, gpu(y)[6:(end - 7), 6:(end - 7), :])
     end
 
@@ -41,7 +41,6 @@ function train_model_on_data(data::AbstractArray{T,3}; n_epochs=2, batchsize=32,
     end
 
     opt = Flux.Optimise.Descent(lr)
-    # TODO: calculate cropping in loss function from model
 
     # create a data-loader and callback to show loss on validation set
     dl_valid = DataLoaderLES(data_normed; nbatches=50, batchsize=batchsize, σ_noise=σ_noise)
@@ -52,8 +51,10 @@ function train_model_on_data(data::AbstractArray{T,3}; n_epochs=2, batchsize=32,
         Flux.@epochs n_epochs Flux.train!(lossfn, Flux.params(model), dl_train, opt; cb=Flux.throttle(evalcb, 10))
     end
 
-    # plot with trained model
-    plot_example(data, model, σ_noise, logger)
+    if data isa GriddedData3D
+        # plot with trained model
+        plot_example(data, model, σ_noise, logger; label="trained model")
+    end
 
     return model
 end
