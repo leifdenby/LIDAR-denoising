@@ -420,3 +420,6 @@ $RECYCLE.BIN/
 
 # weights and biases output
 wandb/
+
+# plots from tests
+test/*.png

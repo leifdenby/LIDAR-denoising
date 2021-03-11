@@ -3,6 +3,7 @@ using DrWatson: @quickactivate, srcdir
 
 include(srcdir("train.jl"))
 include(srcdir("ncfile.jl"))
+include(srcdir("plot.jl"))
 
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 using WeightsAndBiasLogger
@@ -33,6 +34,10 @@ function main()
             help = "Log to Weight & Biases"
             default = false
             action => :store_true
+        "--noise-level"
+            arg_type = Float32
+            help = "σ_noise level"
+            default = 0.5
     end
     args = parse_args(argparser)
 
@@ -43,6 +48,6 @@ function main()
     else
         logger = NullLogger()
     end
-    trained_model = train_model_on_data(data; lr=args["lr"], n_epochs=args["n-epochs"], logger=logger)
+    trained_model = train_model_on_data(data; lr=args["lr"], n_epochs=args["n-epochs"], logger=logger, σ_noise=args["noise-level"])
 end
 main()

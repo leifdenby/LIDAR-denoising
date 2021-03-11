@@ -14,12 +14,18 @@ end
 Base.size(x::NormalizedArray) = size(x.values)
 Base.getindex(x::NormalizedArray, key...) = Base.getindex(x.values, key...)
 
-function normalize(x::AbstractArray{T,N}) where {T,N}
-    x_mean = Statistics.mean(x)
-    x_std = Statistics.std(x)
+function normalize(x::AbstractArray{T,N}, x_mean::T, x_std::T) where {T,N}
     NormalizedArray((x .- x_mean) ./ x_std, x_mean, x_std)
 end
 
+function normalize(x::AbstractArray{T,N}) where {T,N}
+    normalize(x, Statistics.mean(x), Statistics.std(x))
+end
+
+function denormalize(x_normed::NormalizedArray{T,N}, x_mean::T, x_std::T) where {T,N}
+    x_normed.values .* x_std .+ x_mean
+end
+
 function denormalize(x_normed::NormalizedArray{T,N}) where {T,N}
-    x_normed.values .* x_normed.std .+ x_normed.mean
+    denormalize(x_normed, x_normed.mean, x_normed.std)
 end
