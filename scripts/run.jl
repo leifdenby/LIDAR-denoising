@@ -66,18 +66,17 @@ function main()
 
     if args["pretrained-model"] != nothing
         fn = args["pretrained-model"]
-        @load fn weights
-        Flux.loadparams!(model, weights)
-        @info "model weights loaded from $fn"
+        @load fn model
+        @info "model loaded from $fn"
     end
 
     trained_model = train_model_on_data(model, data; lr=args["lr"], n_epochs=args["n-epochs"], logger=logger, σ_noise=args["noise-level"])
 
     if args["save-model-to"] != nothing
         fn = args["save-model-to"]
-        weights = Flux.params(trained_model)
-        @save fn weights
-        @info "model weights saved to $fn"
+        model_on_cpu = Flux.cpu(model)
+        @save fn model_on_cpu
+        @info "model saved to $fn"
         if args["log-to-wandb"]
             wandb.save(fn)
         end
