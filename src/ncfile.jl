@@ -30,5 +30,7 @@ function load_data(filename; z_max=nothing, dtype=Float32)
         da = da[1:k_max,:,:]
     end
     values = dtype.(replace(da, missing => 0.0))
-    return GriddedData3D(values, x_grid, y_grid, z_grid)
+
+    get_values_1d(v) = dtype.(replace(v[:], missing => 0.0))
+    return GriddedData3D(values, get_values_1d(x_grid), get_values_1d(y_grid), get_values_1d(z_grid))
 end
