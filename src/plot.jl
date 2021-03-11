@@ -1,4 +1,3 @@
-import Plots
 import PyPlot
 import Statistics
 import Logging: AbstractLogger, with_logger, @info
