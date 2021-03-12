@@ -1,6 +1,7 @@
 import PyPlot
 import Statistics
 import Logging: AbstractLogger, with_logger, @info
+using Flux: gpu, cpu
 
 include("normalization.jl")
 include("noise.jl")
@@ -19,7 +20,9 @@ function plot_example(data::GriddedData3D{T}, model, σ_noise, target=nothing; l
     add_batch_dim(x::Array{T,2}) = reshape(x, Val(3))
     remove_batch_dim(x_batch::Array{T,3}) = reshape(x_batch, Val(2))
 
-    ŷ_normed = remove_batch_dim(model(add_batch_dim(y_normed_noisy)))
+    gpu_batch = gpu(add_batch_dim(y_normed_noisy))
+    ŷ_batch = model(gpu_batch)
+    ŷ_normed = remove_batch_dim(cpu(ŷ_batch))
     ŷ = denormalize(NormalizedArray(ŷ_normed, data_mean, data_std))
 
     x_grid = data.x

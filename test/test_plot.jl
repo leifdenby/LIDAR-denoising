@@ -1,5 +1,6 @@
 using DrWatson
 using Test
+using Flux: gpu
 @quickactivate
 
 include(srcdir("model.jl"))
@@ -15,6 +16,6 @@ data = GriddedData3D(randn(Float32, (nz, ny, nx)), x_grid, y_grid, z_grid)
 σ_noise = 0.2
 Nf = 5  # filter size in model convolutions
 Nc = 6  # number of "channels" in model convolutions
-model = build_model(Nf, Nc)
+model = build_model(Nf, Nc) |> gpu
 
 plot_example(data, model, σ_noise, "plot.png")
