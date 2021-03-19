@@ -2,6 +2,7 @@ using Flux: gpu, cpu, @epochs, train!, params, throttle
 import Flux
 using Logging: @info, ConsoleLogger, with_logger
 using CUDA
+using Statistics: mean, std
 
 
 include("dataloader.jl")
@@ -28,7 +29,9 @@ function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchs
 
     function lossfn(x, y)
         if train_residual
-            ŷ = x - model(gpu(x))
+            x_gpu = gpu(x)
+            ϵ̂ = model(x_gpu)
+            ŷ = x_gpu - ϵ̂
         else
             ŷ = model(gpu(x))
         end
@@ -42,6 +45,20 @@ function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchs
             loss_dl += lossfn(x_valid, y_valid)
         end
         @info "loss" loss_dl/length(dataloader)
+
+        if train_residual
+            ϵ̂_mean_sum = 0f0
+            ϵ̂_std_sum = 0f0
+            for valid_batch in dataloader
+                x_valid, y_valid = valid_batch
+                ϵ̂_batch = model(gpu(x_valid))
+                ϵ̂_mean_sum += mean(ϵ̂_batch)
+                ϵ̂_std_sum += std(ϵ̂_batch)
+            end
+
+            @info "mean(ϵ̂)" ϵ̂_mean_sum/length(dataloader)
+            @info "std(ϵ̂)" ϵ̂_std_sum/length(dataloader)
+        end
     end
 
     opt = Flux.Optimise.Descent(lr)
