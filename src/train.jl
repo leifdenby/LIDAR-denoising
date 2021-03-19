@@ -65,11 +65,14 @@ function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchs
 
     # create a data-loader and callback to show loss on validation set
     dl_valid = DataLoaderLES(data_normed; batchsize=batchsize, σ_noise=σ_noise)
-    evalcb = () -> loss_all(dl_valid)
 
     # Train model on training dataset
     with_logger(logger) do
-        @epochs n_epochs train!(lossfn, params(model), dl_train, opt; cb=throttle(evalcb, 10))
+        for n in 1:n_epochs
+            @info "epoch" n
+            train!(lossfn, params(model), dl_train, opt)
+            loss_all(dl_valid)
+        end
     end
 
     if data isa GriddedData3D
