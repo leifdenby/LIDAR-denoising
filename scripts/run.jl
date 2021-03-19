@@ -53,6 +53,10 @@ function main()
             arg_type = String
             default = "linear_1x1"
             help = "Type of model to train"
+        "--batch-size"
+            arg_type = Int
+            default = 32
+            help = "Batch size to use during training"
     end
     args = parse_args(argparser)
 
@@ -72,7 +76,7 @@ function main()
         @info "model loaded from $fn"
     end
 
-    trained_model = train_model_on_data(model, data; lr=args["lr"], n_epochs=args["n-epochs"], logger=logger, σ_noise=args["noise-level"])
+    trained_model = train_model_on_data(model, data; batchsize=args["batch-size"], lr=args["lr"], n_epochs=args["n-epochs"], logger=logger, σ_noise=args["noise-level"])
 
     if args["save-model-to"] != nothing
         fn = args["save-model-to"]
