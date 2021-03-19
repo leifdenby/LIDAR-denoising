@@ -1,4 +1,4 @@
-using Flux
+using Flux: identity, Conv, Chain, sigmoid
 
 begin
     N = 256
@@ -10,24 +10,23 @@ end
 
 
 """build denoising neural network with filter size of `Nf` and number intermediate channels of `Nc`"""
-function build_model(Nf::Int, Nc::Int)
-    model = Flux.Chain(
-        # reshape to add channels and batch dimensions
-        x -> reshape(x, size(x, 1), size(x, 2), 1, size(x, 3)),
+function build_model(name="linear_1x1")
 
-        ## NN interior below
-        # first convolution
-        Flux.Conv((Nf, Nf), 1 => Nc, Flux.sigmoid),
-        #Flux.MaxPool((4,4)),
-        Flux.Conv((Nf, Nf), Nc => Nc, Flux.sigmoid),
-        Flux.Conv((Nf, Nf), Nc => 1, Flux.sigmoid),
-        #x -> reshape(x, :), # flatten
-        #Flux.Dense(Nd*Nd, 1)
-        #Flux.Conv((Nd, Nd), 1 => 1),
-        #x -> Flux.Conv((size(x, 1), size(x, 2)), 1 => 1)(x),
-
-        # flatten, remove channels and batch dimensions
-        x -> reshape(x, size(x, 1), size(x, 2), size(x, 4)),
-    )
+    if name == "linear_1x1"
+        model = Conv((1, 1), 1 => 1, identity)
+    elseif name == "linear_3x3"
+        model = Conv((3, 3), 1 => 1, identity, pad=1)
+    elseif name == "__foobar__"
+        Nf = 5
+        Nc = 6
+        model = Chain(
+            Conv((Nf, Nf), 1 => Nc, sigmoid),
+            #Flux.MaxPool((4,4)),
+            Conv((Nf, Nf), Nc => Nc, sigmoid),
+            Conv((Nf, Nf), Nc => 1, sigmoid),
+        )
+    else
+        error("construction of `$name` model not defined")
+    end
     return model
 end

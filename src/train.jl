@@ -1,4 +1,5 @@
-import Flux: gpu, cpu
+using Flux: gpu, cpu, @epochs, train!, params, throttle
+import Flux
 using Logging: @info, ConsoleLogger, with_logger
 using CUDA
 
@@ -14,11 +15,11 @@ if has_cuda() # Check if CUDA is available
     CUDA.allowscalar(false)
 end
 
-function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchsize=32, σ_noise=0.5, lr=0.5, logger=ConsoleLogger()) where T <: AbstractFloat
+function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchsize=32, σ_noise=0.5, lr=0.5, logger=ConsoleLogger(), train_residual=true) where T <: AbstractFloat
     data_normed = normalize(data)
     model = model |> gpu
 
-    dl_train = DataLoaderLES(data_normed; batchsize=batchsize, nbatches=4, σ_noise=σ_noise)
+    dl_train = DataLoaderLES(data_normed; batchsize=batchsize, σ_noise=σ_noise)
 
     if data isa GriddedData3D
         # plot with initial model
@@ -26,9 +27,12 @@ function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchs
     end
 
     function lossfn(x, y)
-        y_hat = model(gpu(x))
-        # TODO: calculate cropping in loss function from model
-        return Flux.Losses.mse(y_hat, gpu(y)[6:(end - 7), 6:(end - 7), :])
+        if train_residual
+            ŷ = x - model(gpu(x))
+        else
+            ŷ = model(gpu(x))
+        end
+        return Flux.Losses.mse(ŷ, gpu(y))
     end
 
     function loss_all(dataloader)
@@ -43,12 +47,12 @@ function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchs
     opt = Flux.Optimise.Descent(lr)
 
     # create a data-loader and callback to show loss on validation set
-    dl_valid = DataLoaderLES(data_normed; nbatches=50, batchsize=batchsize, σ_noise=σ_noise)
+    dl_valid = DataLoaderLES(data_normed; batchsize=batchsize, σ_noise=σ_noise)
     evalcb = () -> loss_all(dl_valid)
 
     # Train model on training dataset
     with_logger(logger) do
-        Flux.@epochs n_epochs Flux.train!(lossfn, Flux.params(model), dl_train, opt; cb=Flux.throttle(evalcb, 10))
+        @epochs n_epochs train!(lossfn, params(model), dl_train, opt; cb=throttle(evalcb, 10))
     end
 
     if data isa GriddedData3D

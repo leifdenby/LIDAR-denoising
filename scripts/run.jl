@@ -49,6 +49,10 @@ function main()
             arg_type = String
             default = nothing
             help = "Save trained model to given filename"
+        "--model"
+            arg_type = String
+            default = "linear_1x1"
+            help = "Type of model to train"
     end
     args = parse_args(argparser)
 
@@ -60,9 +64,7 @@ function main()
         logger = NullLogger()
     end
 
-    Nf = 5  # filter size in model convolutions
-    Nc = 6  # number of "channels" in model convolutions
-    model = build_model(Nf, Nc)
+    model = build_model(args["model-name"])
 
     if args["pretrained-model"] != nothing
         fn = args["pretrained-model"]
