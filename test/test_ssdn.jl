@@ -53,14 +53,17 @@ end
     no = offset(offset_mp_xdim)
     @test no == 1
 
+    # add batch and channel dimensions
+    ex(x) = x[:,:,:,:]
 
     # can't compare against the max-pool values with/without padding because
     # the values will be shifted and the stride will fall on different values,
     # instead I'll just construct arrays which have the padding already applied
 
-    v3 = repeat(1:nx, 1, ny)[:,:,:,:]
-    v3_padded_xdim = repeat(0:nx-1, 1, ny)[:,:,:,:]
-    v3_padded_ydim = collect(repeat(0:ny-1, 1, nx)')[:,:,:,:]
+    v3 = repeat(1:nx, 1, ny) |> ex
+    v3_padded_xdim = vcat(repeat([0], 1, ny), v3[1:(nx-1), :]) |> ex
+    v3_padded_ydim = hcat(repeat([0], nx, 1), v3[:, 1:(ny-1)]) |> ex
+
 
     @test offset_mp_xdim(v3) == MaxPool((ns, ns))(v3_padded_xdim)
     @test offset_mp_ydim(v3) == MaxPool((ns, ns))(v3_padded_ydim)
