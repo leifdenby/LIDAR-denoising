@@ -15,7 +15,7 @@ using Flux: MaxPool
     @test all(offset(d_op, v1)[1:no,:] .== 0)
 end
 
-@test_skip @testset "half-plane convolutions nx=$nx" for nx in [3, 5]
+@testset "half-plane convolutions nx=$nx" for nx in [3, 5]
     ny = 3
     ns = 3  # size of filter is 3x3
 
@@ -40,7 +40,6 @@ end
     @test_broken offset_conv_3x3_xdim_pad(v2) == offset_conv_3x3_xdim_pad(v2_xmod)
     @test offset_conv_3x3_xdim_pad(v2_xmod) == offset_conv_3x3_xdim_pad(v2_xmod)
 end
-
 
 @testset "half-plane max-pool" begin
     nx = 5
