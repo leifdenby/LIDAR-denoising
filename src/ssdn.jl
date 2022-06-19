@@ -1,7 +1,47 @@
 export HalfPlaneOp, DummyHalfPlaneOp, HalfPlaneConv2D, HalfPlaneMaxPool2D
-export offset
+export offset, calc_padding
 
 using Flux: pad_zeros, MaxPool, Conv, SamePad
+
+
+"""
+    HalfPlane(op, dim)
+
+Turn a Flux operator (e.g. MaxPool or Conv) into a half-plane operation along
+dimension `dim`
+"""
+struct HalfPlane
+    op
+    dim
+end
+
+
+function offset(c::HalfPlane)
+    """For a HalfPlaneOp work out what offset is needed to make it half-plane"""
+    stencil_width = c.filter[c.dim]
+    n_offset = stencil_width ÷ 2
+    if stencil_width % 2 == 1
+        n_offset += 1
+    end
+    return n_offset
+end
+
+
+function halfplane_offset(c::HalfPlaneOp, x::AbstractArray{T}) where T
+    """apply offset required for HalfPlaneOp `c` to `x`"""
+    n_offset = offset(c)
+
+    # pad with zeros by the same amount at the beginning
+    x_padded = pad_zeros(x, (n_offset, 0), dims=[c.dim])
+
+    # and crop of last n_offset elements (same as cropping to original size) in
+    # c.dim direction
+    selectdim(x_padded, c.dim, 1:size(x, c.dim))
+end
+
+
+
+
 
 
 abstract type HalfPlaneOp end
@@ -9,7 +49,13 @@ abstract type HalfPlaneOp end
 function offset(c::HalfPlaneOp, x::AbstractArray{T}) where T
     """apply offset required for HalfPlaneOp `c` to `x`"""
     n_offset = offset(c)
-    pad_zeros(x, (n_offset, 0), dims=[c.dim])
+
+    # pad with zeros by the same amount at the beginning
+    x_padded = pad_zeros(x, (n_offset, 0), dims=[c.dim])
+
+    # and crop of last n_offset elements (same as cropping to original size) in
+    # c.dim direction
+    selectdim(x_padded, c.dim, 1:size(x, c.dim))
 end
 
 function offset(c::HalfPlaneOp)
@@ -55,20 +101,7 @@ function (c::HalfPlaneConv2D)(x::AbstractArray{T}) where T
     the centre of the convolution filter is also excluded
     """
     x_offset = offset(c, x)
-    n_offset = offset(c)
-    x_conv = c.conv(x_offset)
-
-    pad = c.conv.pad[c.dim]
-    i_start = 1 + pad
-    i_end = size(x_conv, c.dim) - n_offset
-
-    if c.dim == 1
-        return x_conv[i_start:i_end,:,:,:]
-    elseif c.dim == 2
-        return x_conv[:,i_start:i_end,:,:]
-    else
-        throw("Not implemented")
-    end
+    return c.conv(x_offset)
 end
 
 # half-plane max-pooling
@@ -78,6 +111,7 @@ struct HalfPlaneMaxPool2D <: HalfPlaneOp
     filter::Tuple{Integer,Integer}
     dim::Integer
 end
+
 
 function (c::HalfPlaneMaxPool2D)(x::AbstractArray{T}) where T
     # in Laine et al 2019 they apply a crop before padding with zeros so we'll do the same here
@@ -107,7 +141,10 @@ function (c::HalfPlaneMaxPool2D)(x::AbstractArray{T}) where T
     x_offset = offset(c, x_crop)
 
     pad = SamePad()
-    x_mp = MaxPool(c.filter, pad=0)(x_offset)
+    mp = MaxPool(c.filter, pad=)(x_offset)
+
+    x_offset = offset(c, x)
+    return c.conv(x_offset)
 
     return x_mp
 end

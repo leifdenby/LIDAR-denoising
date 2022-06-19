@@ -1,6 +1,6 @@
 using Test
 using LIDARdenoising
-using Flux: MaxPool
+using Flux: MaxPool, SamePad
 
 
 @testset "half-plane generics" begin
@@ -15,17 +15,18 @@ using Flux: MaxPool
     @test all(offset(d_op, v1)[1:no,:] .== 0)
 end
 
-@test_skip @testset "half-plane convolutions nx=$nx" for nx in [3, 5]
+@testset "half-plane convolutions nx=$nx" for nx in [3, 5]
     ny = 3
     ns = 3  # size of filter is 3x3
 
     # check that that only the values in the half-plane contribute to the final value
     v2 = randn(Float32, (nx, ny, 1, 1))
-    offset_conv_3x3_xdim = HalfPlaneConv2D((ns,ns),1=>1, identity, pad=0)
-    offset_conv_3x3_xdim_pad = HalfPlaneConv2D((ns,ns),1=>1, identity, pad=1)
-    offset_conv_3x3_ydim = HalfPlaneConv2D((ns,ns),1=>1, identity, pad=0, dim=2)
+    offset_conv_xdim = HalfPlaneConv2D((ns,ns),1=>1, identity, pad=0)
+    offset_conv_xdim_pad1 = HalfPlaneConv2D((ns,ns),1=>1, identity, pad=1)
+    offset_conv_xdim_samepad = HalfPlaneConv2D((ns,ns),1=>1, identity, pad=SamePad())
+    offset_conv_ydim = HalfPlaneConv2D((ns,ns),1=>1, identity, pad=0, dim=2)
     # all operators have same filter width
-    no = offset(offset_conv_3x3_xdim)
+    no = offset(offset_conv_xdim)
 
     # change the values for the values that sholdn't effect the result
     v2_xmod = copy(v2)
@@ -33,16 +34,20 @@ end
     v2_ymod = copy(v2)
     v2_ymod[:,ny-no+1:ny,:,:] .= 1 
 
-    @test offset_conv_3x3_xdim(v2) == offset_conv_3x3_xdim(v2_xmod)
-    @test offset_conv_3x3_ydim(v2) == offset_conv_3x3_ydim(v2_ymod)
-    # XXX: tests using padding fail, they shouldn't, but I think thre is a mistake
-    # in the paper and with padding the central pixel does effect the result
-    @test_broken offset_conv_3x3_xdim_pad(v2) == offset_conv_3x3_xdim_pad(v2_xmod)
-    @test offset_conv_3x3_xdim_pad(v2_xmod) == offset_conv_3x3_xdim_pad(v2_xmod)
+    @test offset_conv_xdim(v2) == offset_conv_xdim(v2_xmod)
+    @test offset_conv_ydim(v2) == offset_conv_ydim(v2_ymod)
+    @test offset_conv_xdim_pad1(v2) == offset_conv_xdim_pad1(v2_xmod)
+    @test offset_conv_xdim_samepad(v2) == offset_conv_xdim_samepad(v2_xmod)
+
+    # next we'll check the shapes against just applying the underlying
+    # convolutions without offsetting (which creates the half-planes)
+    @test size(offset_conv_xdim(v2)) == size(offset_conv_xdim.conv(v2))
+    @test size(offset_conv_xdim_pad1(v2)) == size(offset_conv_xdim_pad1.conv(v2))
+    @test size(offset_conv_xdim_samepad(v2)) == size(offset_conv_xdim_samepad.conv(v2))
 end
 
 
-@testset "half-plane max-pool" begin
+@test_skip @testset "half-plane max-pool" begin
     nx = 5
     ny = 4
     ns = 2  # size of filter is 2x2 as in Laine et al 2019
