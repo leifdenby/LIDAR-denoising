@@ -48,7 +48,6 @@ end
     @test size(offset_conv_xdim_samepad(v2)) == size(offset_conv_xdim_samepad.op(v2))
 end
 
-
 @test_skip @testset "half-plane max-pool" begin
     nx = 5
     ny = 4
@@ -90,4 +89,11 @@ end
     # we're using "same"-padding throughout (as in Laine 2019) so the shape of
     # the output should be the same as the input
     @test size(model(x)) == size(x)
+end
+
+@testset "ssdn" begin
+    model_ssdn = make_ssdn(1, 1, 1)
+    x = randn(Float32, (256, 256, 1, 1))
+    @show model_ssdn(x) |> size
+    @assert size(model_ssdn(x)) == size(x)
 end
