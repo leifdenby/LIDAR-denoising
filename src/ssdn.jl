@@ -1,7 +1,8 @@
 export HalfPlaneOp, DummyHalfPlaneOp, HalfPlaneConv2D, HalfPlaneMaxPool2D
-export offset
+export offset, make_ssdn
 
 using Flux: pad_zeros, MaxPool, Conv, SamePad
+using Flux: leakyrelu, ConvTranspose, Chain, SkipConnection
 
 
 abstract type HalfPlaneOp end
@@ -110,4 +111,54 @@ function (c::HalfPlaneMaxPool2D)(x::AbstractArray{T}) where T
     x_mp = MaxPool(c.filter, pad=0)(x_offset)
 
     return x_mp
+end
+
+
+
+function make_ssdn(nc_in, n_levels, n_out_features)
+    lower_level = undef
+    # convolution stencil size, same as Laine 2019
+    w = 3
+    # number of hidden layers after first convolution
+    nc_hd = 4
+    # activation function
+    act = leakyrelu
+
+    for n in 1:n_levels
+        layers = Vector{Any}([
+            # offset convolution with padding
+            HalfPlaneConv2D((w,w), nc_hd => nc_hd, act),
+            # max-pool coarsening
+            HalfPlaneMaxPool2D((2,2), 1)
+        ])
+        
+        if n > 1
+            append!(layers, [
+                # skip-connetion with concatenation across lower level
+                SkipConnection(lower_level, (mx, x) -> cat(mx, x, dims=3))
+                # conv-transpose up in lower level doubled number channels
+                # so with concat that is (2+1)*nc_hd. Conv with padding
+                # to return to nc_hd channels
+                HalfPlaneConv2D((w,w), nc_hd*3 => nc_hd, act)
+            ])
+        end
+
+        append!(layers,
+            [
+            # offset convolution with padding
+            HalfPlaneConv2D((w,w), nc_hd => nc_hd, act),
+            # conv-tranpose up, doubling number of channels
+            ConvTranspose((2,2), nc_hd => 2*nc_hd, stride=2)
+        ])
+
+        lower_level = Chain(layers...)
+    end
+
+    # TODO: add in image stacking and unstacking etc
+    model = Chain(
+        HalfPlaneConv2D((w,w), nc_in => nc_hd, act),
+        lower_level,
+        HalfPlaneConv2D((w,w), 2*nc_hd => n_out_features, act)
+    )
+    return model
 end

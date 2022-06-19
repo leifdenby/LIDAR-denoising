@@ -3,7 +3,7 @@ using LIDARdenoising
 using Flux: MaxPool
 
 
-@testset "half-plane generics" begin
+@test_skip @testset "half-plane generics" begin
     nx = 3
     ny = 3
     ns = 3  # size of filter is 3x3
@@ -15,7 +15,7 @@ using Flux: MaxPool
     @test all(offset(d_op, v1)[1:no,:] .== 0)
 end
 
-@testset "half-plane convolutions nx=$nx" for nx in [3, 5]
+@test_skip @testset "half-plane convolutions nx=$nx" for nx in [3, 5]
     ny = 3
     ns = 3  # size of filter is 3x3
 
@@ -41,7 +41,7 @@ end
     @test offset_conv_3x3_xdim_pad(v2_xmod) == offset_conv_3x3_xdim_pad(v2_xmod)
 end
 
-@testset "half-plane max-pool" begin
+@test_skip @testset "half-plane max-pool" begin
     nx = 5
     ny = 4
     ns = 2  # size of filter is 2x2 as in Laine et al 2019
@@ -66,4 +66,11 @@ end
 
     @test offset_mp_xdim(v3) == MaxPool((ns, ns))(v3_padded_xdim)
     @test offset_mp_ydim(v3) == MaxPool((ns, ns))(v3_padded_ydim)
+end
+
+@testset "ssdn" begin
+    model_ssdn = make_ssdn(1, 1, 1)
+    x = randn(Float32, (256, 256, 1, 1))
+    @show model_ssdn(x) |> size
+    @assert size(model_ssdn(x)) == size(x)
 end
