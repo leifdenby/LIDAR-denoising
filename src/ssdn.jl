@@ -51,6 +51,18 @@ function halfplane_offset(c::HalfPlane, x::AbstractArray{T}) where T
     selectdim(x_padded, c.dim, 1:size(x, c.dim))
 end
 
+
+function halfplane_offset_reverse(c::HalfPlane, x::AbstractArray{T}) where T
+    n_offset = halfplane_offset(c)
+
+    # pad with zeros by the same amount at the beginning
+    x_padded = pad_zeros(x, (0, n_offset), dims=[c.dim])
+
+    # and crop of last n_offset elements (same as cropping to original size) in
+    # c.dim direction
+    selectdim(x_padded, c.dim, n_offset:size(x, c.dim) + n_offset)
+end
+
 """
     (c::HalfPlane)(x)
 Apply half-plane operation to x
@@ -89,7 +101,7 @@ unrotate = Chain(
     # split along batch dimension
     x -> [selectdim(x, 4, i) for i in 1:4],
     # rotate each part back by correct amount
-    x -> [rotate_hw(v[:,:,:,:], a) for (v, a) in zip(x, [0, -90, 180, -270])],
+    x -> [rotate_hw(v[:,:,:,:], a) for (v, a) in zip(x, [0, 270, 180, 90])],
     # and concat again along channel dimension
     x -> cat(x..., dims=3)
 )
@@ -98,7 +110,8 @@ unrotate = Chain(
 
 
 function SSDN(nc_in, n_levels, n_out_features)
-    lower_level = undef
+    # make "lower" level in the Unet be a no-op by default
+    lower_level = Conv((1, 1), 1 => 2)
 
     # convolution stencil size
     w = 3
@@ -139,64 +152,17 @@ function SSDN(nc_in, n_levels, n_out_features)
 
     # TODO: add in image stacking and unstacking etc
     model = Chain(
-        HalfPlane( Conv((w,w), nc_in => nc_hd, act, pad=SamePad()), 1),
+        # add four rotated copies of input images along batch dimension
         rotated_stack,
+        HalfPlane( Conv((w,w), nc_in => nc_hd, act, pad=SamePad()), 1),
         lower_level,
+        # TODO: need inverse of half-plane offset here
         unrotate,
         # after unrotating each half-plane goes into a different channel
-        # so we gain x4 the number of channels
-        HalfPlane( Conv((w,w), 4*2*nc_hd => 2*nc_hd, act, pad=SamePad()), 1),
-        HalfPlane( Conv((w,w), 2*nc_hd => n_out_features, act, pad=SamePad()), 1)
-    )
-    return model
-end
-
-
-
-function make_ssdn(nc_in, n_levels, n_out_features)
-    lower_level = undef
-    # convolution stencil size, same as Laine 2019
-    w = 3
-    # number of hidden layers after first convolution
-    nc_hd = 4
-    # activation function
-    act = leakyrelu
-
-    for n in 1:n_levels
-        layers = Vector{Any}([
-            # offset convolution with padding
-            HalfPlaneConv2D((w,w), nc_hd => nc_hd, act),
-            # max-pool coarsening
-            HalfPlaneMaxPool2D((2,2), 1)
-        ])
-        
-        if n > 1
-            append!(layers, [
-                # skip-connetion with concatenation across lower level
-                SkipConnection(lower_level, (mx, x) -> cat(mx, x, dims=3))
-                # conv-transpose up in lower level doubled number channels
-                # so with concat that is (2+1)*nc_hd. Conv with padding
-                # to return to nc_hd channels
-                HalfPlaneConv2D((w,w), nc_hd*3 => nc_hd, act)
-            ])
-        end
-
-        append!(layers,
-            [
-            # offset convolution with padding
-            HalfPlaneConv2D((w,w), nc_hd => nc_hd, act),
-            # conv-tranpose up, doubling number of channels
-            ConvTranspose((2,2), nc_hd => 2*nc_hd, stride=2)
-        ])
-
-        lower_level = Chain(layers...)
-    end
-
-    # TODO: add in image stacking and unstacking etc
-    model = Chain(
-        HalfPlaneConv2D((w,w), nc_in => nc_hd, act),
-        lower_level,
-        HalfPlaneConv2D((w,w), 2*nc_hd => n_out_features, act)
+        # so we gain x4 the number of channels. After this we no longer need
+        # half-plane convolutions
+        Conv((1,1), 4*2*nc_hd => 2*nc_hd, act, pad=SamePad()),
+        Conv((1,1), 2*nc_hd => n_out_features, act, pad=SamePad()),
     )
     return model
 end
