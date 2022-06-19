@@ -1,3 +1,6 @@
+export HalfPlaneOp, DummyHalfPlaneOp, HalfPlaneConv2D, HalfPlaneMaxPool2D
+export offset
+
 using Flux: pad_zeros, MaxPool, Conv, SamePad
 
 
