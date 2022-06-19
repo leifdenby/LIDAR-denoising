@@ -90,10 +90,3 @@ end
     # the output should be the same as the input
     @test size(model(x)) == size(x)
 end
-
-@testset "ssdn" begin
-    model_ssdn = make_ssdn(1, 1, 1)
-    x = randn(Float32, (256, 256, 1, 1))
-    @show model_ssdn(x) |> size
-    @assert size(model_ssdn(x)) == size(x)
-end
