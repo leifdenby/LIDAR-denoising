@@ -2,7 +2,7 @@ export HalfPlaneOp, DummyHalfPlaneOp, HalfPlaneConv2D, HalfPlaneMaxPool2D
 export offset, make_ssdn
 
 using Flux: pad_zeros, MaxPool, Conv, SamePad
-using Flux: leakyrelu, ConvTranspose, Chain, SkipConnection
+using Flux: leakyrelu, ConvTranspose, Chain, SkipConnection, identity
 
 
 abstract type HalfPlaneOp end
@@ -40,7 +40,7 @@ end
 function HalfPlaneConv2D(
     filter::Tuple{<:Integer,<:Integer},
     ch::Pair{<:Integer,<:Integer},
-    activation::Function;
+    activation::Function = identity;
     dim=1,
     pad=0,
 )
