@@ -1,5 +1,5 @@
 using Test
-using LIDARdenoising: HalfPlane, halfplane_offset, SSDN
+using LIDARdenoising: HalfPlane, halfplane_offset, SSDN, rotate_hw
 using Flux: MaxPool, SamePad, identity, Conv
 
 
@@ -76,6 +76,11 @@ end
 
     @test offset_mp_xdim(v3) == offset_mp_xdim.op(v3_padded_xdim)
     @test offset_mp_ydim(v3) == offset_mp_ydim.op(v3_padded_ydim)
+end
+
+@testset "rotation" begin
+    a = randn(Float32, (16, 16, 1, 1))
+    @test rotate_hw(a, 90) == rotate_hw(a, -270)
 end
 
 @testset "ssdn" for n_layers in [1, 2]

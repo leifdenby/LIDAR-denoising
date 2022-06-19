@@ -1,7 +1,8 @@
-export HalfPlane, halfplane_offset, SSDN
+export HalfPlane, halfplane_offset, SSDN, rotate_hw, rotated_stack, unrotate
 
 using Flux: pad_zeros, MaxPool, Conv, SamePad
 using Flux: leakyrelu, ConvTranspose, Chain, SkipConnection
+using Base: split
 
 
 """
@@ -58,6 +59,43 @@ function (c::HalfPlane)(x::AbstractArray{T}) where T
     return c.op(halfplane_offset(c, x))
 end
 
+"""
+    rotate_hw(x)
+
+Rotate a batch in the-xy plane by `angle` (only values divisible by 90)
+"""
+function rotate_hw(x::Array{T,4}, angle) where T
+    if angle == 0
+        return x
+    else
+        x_rot = zeros(T, tuple([size(x, i) for i in [2,1,3,4]]...))
+
+        for I in CartesianIndices(size(x)[3:4])
+            x_rot[:,:,I] = rotr90(x[:,:,I], angle ÷ 90)
+        end
+        return x_rot
+    end
+end
+
+"""rotated_stack(x)
+
+Created rotated copies rotated by 0, 90, 180 and 270 in the batch dimension
+"""
+rotated_stack(x) = cat([rotate_hw(x, a) for a in [0, 90, 180, 270]]...; dims=4)
+
+# NB: I think this is creating copies, I'm sure this could be improved by
+# rotating inplace in memory
+unrotate = Chain(
+    # split along batch dimension
+    x -> [selectdim(x, 4, i) for i in 1:4],
+    # rotate each part back by correct amount
+    x -> [rotate_hw(v[:,:,:,:], a) for (v, a) in zip(x, [0, -90, 180, -270])],
+    # and concat again along channel dimension
+    x -> cat(x..., dims=3)
+)
+
+# Base.split(x::AbstractArray{T}, d) where T = [selectdim(x, i, d) for i in 1:size(x, d)]
+
 
 function SSDN(nc_in, n_levels, n_out_features)
     lower_level = undef
@@ -102,9 +140,13 @@ function SSDN(nc_in, n_levels, n_out_features)
     # TODO: add in image stacking and unstacking etc
     model = Chain(
         HalfPlane( Conv((w,w), nc_in => nc_hd, act, pad=SamePad()), 1),
+        rotated_stack,
         lower_level,
+        unrotate,
+        # after unrotating each half-plane goes into a different channel
+        # so we gain x4 the number of channels
+        HalfPlane( Conv((w,w), 4*2*nc_hd => 2*nc_hd, act, pad=SamePad()), 1),
         HalfPlane( Conv((w,w), 2*nc_hd => n_out_features, act, pad=SamePad()), 1)
-
     )
     return model
 end
