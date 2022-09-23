@@ -1,8 +1,3 @@
-using Flux: gpu, unsqueeze
-using Random: shuffle
-include("noise.jl")
-
-
 mutable struct DataLoaderLES{T}
     data::AbstractArray{T,3}
     batchsize::Int

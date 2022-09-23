@@ -1,24 +1,7 @@
-using Flux: gpu, cpu, @epochs, train!, params, throttle
-import Flux
-using Logging: @info, ConsoleLogger, with_logger
-using CUDA
-using Statistics: mean, std
-
-
-include("dataloader.jl")
-include("model.jl")
-include("normalization.jl")
-include("plot.jl")
-
-
-if has_cuda() # Check if CUDA is available
-    @info "CUDA is on"
-    CUDA.allowscalar(false)
-end
 
 function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchsize=32, σ_noise=0.5, lr=0.5, logger=ConsoleLogger(), train_residual=true) where T <: AbstractFloat
     data_normed = normalize(data)
-    model = model |> gpu
+    model = model |> _device
 
     dl_train = DataLoaderLES(data_normed; batchsize=batchsize, σ_noise=σ_noise)
 
@@ -29,13 +12,12 @@ function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchs
 
     function lossfn(x, y)
         if train_residual
-            x_gpu = gpu(x)
-            ϵ̂ = model(x_gpu)
-            ŷ = x_gpu - ϵ̂
+            ϵ̂ = model(_device(x))
+            ŷ = x - ϵ̂
         else
-            ŷ = model(gpu(x))
+            ŷ = model(_device(x))
         end
-        return Flux.Losses.mse(ŷ, gpu(y))
+        return Flux.Losses.mse(ŷ, _device(y))
     end
 
     function loss_all(dataloader)
@@ -51,7 +33,7 @@ function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchs
             ϵ̂_std_sum = 0f0
             for valid_batch in dataloader
                 x_valid, y_valid = valid_batch
-                ϵ̂_batch = model(gpu(x_valid))
+                ϵ̂_batch = model(_device(x_valid))
                 ϵ̂_mean_sum += mean(ϵ̂_batch)
                 ϵ̂_std_sum += std(ϵ̂_batch)
             end

@@ -1,5 +1,3 @@
-using NCDatasets
-
 struct GriddedData3D{T} <: AbstractArray{T,3}
     values::AbstractArray{T,3}
     x::AbstractVector{T}
