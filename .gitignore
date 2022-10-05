@@ -426,3 +426,4 @@ test/*.png
 
 # saved model weights
 *.bson
+plot.png

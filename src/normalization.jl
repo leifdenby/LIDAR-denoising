@@ -1,5 +1,3 @@
-import Statistics
-
 """
 Create a "normalized array" which behaves like a normal array, but carries
 around a value for the mean and standard div it was normalized with so that the

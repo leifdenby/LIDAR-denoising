@@ -1,5 +1,3 @@
-using Flux: identity, Conv, Chain, sigmoid
-
 begin
     N = 256
     Nf = 5
