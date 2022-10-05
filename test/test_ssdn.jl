@@ -3,7 +3,7 @@ using LIDARdenoising: HalfPlane, halfplane_offset, SSDN, rotate_hw
 using Flux: MaxPool, SamePad, identity, Conv
 
 
-@test_skip @testset "half-plane generics" begin
+@testset "half-plane generics" begin
     nx = 3
     ny = 3
     ns = 3  # size of filter is 3x3
@@ -17,7 +17,7 @@ using Flux: MaxPool, SamePad, identity, Conv
     @test all(selectdim(halfplane_offset(d_op, v1), 1, 1:no) .== 0)
 end
 
-@test_skip @testset "half-plane convolutions nx=$nx" for nx in [3, 5]
+@testset "half-plane convolutions nx=$nx" for nx in [3, 5]
     ny = 3
     ns = 3  # size of filter is 3x3
 
@@ -48,7 +48,7 @@ end
     @test size(offset_conv_xdim_samepad(v2)) == size(offset_conv_xdim_samepad.op(v2))
 end
 
-@test_skip @testset "half-plane max-pool" begin
+@testset "half-plane max-pool" begin
     nx = 5
     ny = 4
     ns = 2  # size of filter is 2x2 as in Laine et al 2019
