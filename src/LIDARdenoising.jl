@@ -11,6 +11,7 @@ using Flux: gpu, cpu
 using Flux: identity, Conv, Chain, sigmoid, unsqueeze
 using NCDatasets
 using Random: shuffle
+using MLUtils: unsqueeze
 
 # store gpu/cpu device into `_device` variable, can't use name `device` since CUDA exports that
 if CUDA.functional()

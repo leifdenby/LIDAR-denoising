@@ -8,11 +8,11 @@ function plot_example(data::GriddedData3D{T}, model, σ_noise, target=nothing; l
 
     y_noisy = denormalize(NormalizedArray(y_normed_noisy, data_mean, data_std))
 
-    add_batch_and_channel_dim(x::Array{T,2}) = reshape(x, Val(4))
-    remove_batch_and_channel_dim(x_batch::Array{T,4}) = reshape(x_batch, Val(2))
+    add_batch_and_channel_dim(x::Array{T,2}) = x |> unsqueeze(; dims=3) |> unsqueeze(; dims=4)
+    remove_batch_and_channel_dim(x_batch::Array{T,4}) = x_batch[:,:,1,1]
 
-    device_batch = add_batch_and_channel_dim(y_normed_noisy) |> device
-    ŷ_batch = model(device_batch) |> cpu
+    device_batch = add_batch_and_channel_dim(y_normed_noisy) |> _device
+    ŷ_batch = _device(model)(device_batch) |> cpu
     ŷ_normed = remove_batch_and_channel_dim(ŷ_batch)
     ŷ = denormalize(NormalizedArray(ŷ_normed, data_mean, data_std))
 
