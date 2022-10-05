@@ -20,6 +20,7 @@ using Flux
     Nf = 5  # filter size in model convolutions
     Nc = 6  # number of "channels" in model convolutions
     model = LIDARdenoising.build_model("linear_1x1")
+
     initial_params = deepcopy(Flux.params(model))
     trained_model = LIDARdenoising.train_model_on_data(model, data, n_epochs=2) |> cpu
     @test initial_params != Flux.params(trained_model)
