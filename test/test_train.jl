@@ -1,5 +1,6 @@
 using LIDARdenoising
 using Test
+using Flux
 
 
 @testset "training" begin
@@ -14,6 +15,6 @@ using Test
     Nf = 5  # filter size in model convolutions
     Nc = 6  # number of "channels" in model convolutions
     model = LIDARdenoising.build_model("linear_1x1")
-    trained_model = LIDARdenoising.train_model_on_data(model, data)
-    @test model != trained_model
+    trained_model = LIDARdenoising.train_model_on_data(model, data) |> cpu
+    @test Flux.params(model) != Flux.params(trained_model)
 end
