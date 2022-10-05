@@ -11,11 +11,12 @@ function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchs
     end
 
     function lossfn(x, y)
+        x_device = _device(x)
         if train_residual
-            ϵ̂ = model(_device(x))
-            ŷ = x - ϵ̂
+            ϵ̂ = model(x_device)
+            ŷ = x_device - ϵ̂
         else
-            ŷ = model(_device(x))
+            ŷ = model(x_device)
         end
         return Flux.Losses.mse(ŷ, _device(y))
     end
@@ -52,7 +53,7 @@ function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchs
     with_logger(logger) do
         for n in 1:n_epochs
             @info "epoch" n
-            train!(lossfn, params(model), dl_train, opt)
+            Flux.train!(lossfn, Flux.params(model), dl_train, opt)
             loss_all(dl_valid)
         end
     end

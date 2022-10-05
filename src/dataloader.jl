@@ -33,7 +33,7 @@ function Base.iterate(dl::DataLoaderLES, i = 0)
     indecies = rand(1:size(dl.data)[2], dl.batchsize)
     srcdata_batch = cat([_getSlice(dl.data, dl.data_order[idx]) for idx in indecies]...; dims = 3)
     # add channel dimension
-    y_batch = unsqueeze(srcdata_batch, 3)
+    y_batch = unsqueeze(srcdata_batch; dims=3)
     # In predicition the convolutions mean we can't predict the edge
     x_batch = add_noise.(y_batch; σ = dl.σ_noise)
 

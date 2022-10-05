@@ -6,9 +6,7 @@ import Statistics
 import Logging: AbstractLogger, with_logger, @info
 using Logging: @info, ConsoleLogger, with_logger
 using CUDA
-import Flux
-using Flux: gpu, cpu
-using Flux: identity, Conv, Chain, sigmoid, unsqueeze
+using Flux
 using NCDatasets
 using Random: shuffle
 using MLUtils: unsqueeze
