@@ -2,6 +2,12 @@
 function train_model_on_data(model, data::AbstractArray{T,3}; n_epochs=2, batchsize=32, σ_noise=0.5, lr=0.5, logger=ConsoleLogger(), train_residual=true) where T <: AbstractFloat
     data_normed = normalize(data)
     model = model |> _device
+    # if we are training on the CPU we make a copy of the model here so we don't update the original
+    # I'm not sure how to update the on CPU model when training on the GPU, so I'm not sure how to
+    # do an inplace update of the model when training on the GPU
+    if _device == cpu
+        model = deepcopy(model)
+    end
 
     dl_train = DataLoaderLES(data_normed; batchsize=batchsize, σ_noise=σ_noise)
 
