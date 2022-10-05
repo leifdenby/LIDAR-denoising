@@ -1,7 +1,4 @@
-using DrWatson
-@quickactivate
-
-include(srcdir("dataloader.jl"))
+using LIDARdenoising
 
 # generate some fake data to test with
 nx, ny, nz = 40, 30, 20
