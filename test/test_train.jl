@@ -17,11 +17,16 @@ using Flux
         throw("Data kind $(data_kind) not implemented")
     end
 
-    Nf = 5  # filter size in model convolutions
-    Nc = 6  # number of "channels" in model convolutions
-    model = LIDARdenoising.build_model("linear_1x1")
+    n_features_in, n_features_out = 1, 1
+    n_layers = 2
+    models = Dict(
+        :linear => LIDARdenoising.Models.Linear(;conv_size=1),
+        :SSDN => LIDARdenoising.Models.SSDN(n_features_in, n_layers, n_features_out)
+    )
 
-    initial_params = deepcopy(Flux.params(model))
-    trained_model = LIDARdenoising.train_model_on_data(model, data, n_epochs=2) |> cpu
-    @test initial_params != Flux.params(trained_model)
+    @testset "train $(model_name) model" for (model_name, model) in models
+        initial_params = deepcopy(Flux.params(model))
+        trained_model = LIDARdenoising.train_model_on_data(model, data, n_epochs=2) |> cpu
+        @test initial_params != Flux.params(trained_model)
+    end
 end

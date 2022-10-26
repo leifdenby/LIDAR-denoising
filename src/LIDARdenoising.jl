@@ -1,7 +1,6 @@
 module LIDARdenoising
 
 using Distributions
-import PyPlot
 import Statistics
 import Logging: AbstractLogger, with_logger, @info
 using Logging: @info, ConsoleLogger, with_logger
@@ -10,6 +9,7 @@ using Flux
 using NCDatasets
 using Random: shuffle
 using MLUtils: unsqueeze
+using Plots: plot, heatmap, savefig
 
 # store gpu/cpu device into `_device` variable, can't use name `device` since CUDA exports that
 if CUDA.functional()
@@ -25,10 +25,9 @@ include("noise.jl")
 include("dataloader.jl")
 include("normalization.jl")
 include("ncfile.jl")
-include("model.jl")
+include("models/models.jl")
 include("train.jl")
 include("plot.jl")
-include("ssdn.jl")
 
 export DataLoaderLES
 

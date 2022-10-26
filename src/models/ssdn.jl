@@ -1,9 +1,5 @@
 export HalfPlane, halfplane_offset, SSDN, rotate_hw, rotated_stack, unrotate
 
-using Flux: pad_zeros, MaxPool, Conv, SamePad
-using Flux: leakyrelu, ConvTranspose, Chain, SkipConnection
-using Base: split
-
 
 """
     HalfPlane(op, dim)
@@ -15,6 +11,8 @@ struct HalfPlane
     op
     dim::Integer
 end
+
+Flux.@functor HalfPlane
 
 """For a HalfPlaneOp work out what offset is needed to make it half-plane"""
 function halfplane_offset(stencil_width::Integer)
@@ -68,7 +66,9 @@ end
 Apply half-plane operation to x
 """
 function (c::HalfPlane)(x::AbstractArray{T}) where T
-    return c.op(halfplane_offset(c, x))
+    # need to create a copy here (and not just a view) otherwise
+    # executation requires scalar indexing which isn't allowed on the GPU
+    return c.op(copy(halfplane_offset(c, x)))
 end
 
 """
@@ -76,16 +76,11 @@ end
 
 Rotate a batch in the-xy plane by `angle` (only values divisible by 90)
 """
-function rotate_hw(x::Array{T,4}, angle) where T
+function rotate_hw(x::AbstractArray{T,4}, angle) where T
     if angle == 0
         return x
     else
-        x_rot = zeros(T, tuple([size(x, i) for i in [2,1,3,4]]...))
-
-        for I in CartesianIndices(size(x)[3:4])
-            x_rot[:,:,I] = rotr90(x[:,:,I], angle ÷ 90)
-        end
-        return x_rot
+        return mapslices(x_ -> rotr90(x_, angle ÷ 90), x, dims=[1,2])
     end
 end
 
