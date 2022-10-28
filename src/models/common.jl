@@ -74,21 +74,20 @@ function train!(denoiser::AbstractDenoiser, dl_train::MLUtils.DataLoader, dl_tes
     opt = Flux.Optimise.Adam(learning_rate)
 
     to_device = device(denoiser)
+
+    valid_losses = []
+    train_losses = []
+
     # general loss function with any batch contents calling denoiser specific loss
     denoiser_loss(batch...) = loss(denoiser, to_device(batch)...)
     
-    losses = []
-    
-    function evalcb()
+    function eval_loss(dl)
         loss_dl = 0f0
-        for valid_batch in dl_test
+        for valid_batch in dl
             loss_dl += denoiser_loss(valid_batch...)
         end
-        avg_loss = loss_dl/length(dl_test)
-        @info "loss" avg_loss
-        push!(losses, avg_loss)
+        avg_loss = loss_dl/length(dl)
     end
-    throttled_cb = Flux.throttle(evalcb, 2)
 
     for n in 1:n_epochs
         Flux.train!(
@@ -96,14 +95,16 @@ function train!(denoiser::AbstractDenoiser, dl_train::MLUtils.DataLoader, dl_tes
             Flux.params(denoiser.model),
             dl_train,
             opt,
-            cb = throttled_cb
         )
-        if early_stopping(losses)
+        push!(valid_losses, eval_loss(dl_test))
+        push!(train_losses, eval_loss(dl_train))
+        @info "epoch=$(n) train_loss=$(train_losses[end]) valid_loss=$(valid_losses[end])"
+        if early_stopping(valid_losses)
             @info "stopped"
             break
         end
     end
-    return losses
+    return [train_losses, valid_losses]
 end
 
 """

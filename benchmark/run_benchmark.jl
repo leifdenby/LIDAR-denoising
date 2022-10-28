@@ -50,10 +50,11 @@ clean_samples_normed = LIDARdenoising.normalize(clean_samples, noisy_samples_nor
 #denoiser = LinearDenoiser(Conv((3, 3), 1 => 1, identity, pad=SamePad()))
 #denoiser = Noise2CleanDenoiser(n_layers=4) |> gpu
 denoiser = Noise2Noise() |> gpu
-losses = train!(denoiser, noisy_samples_normed, noisy_samples_normed2; n_epochs=5, learning_rate=1.0e-4)
+train_losses, valid_losses = train!(denoiser, noisy_samples_normed, noisy_samples_normed2; n_epochs=15, learning_rate=1.0e-5)
 #losses = train!(denoiser, clean_samples_normed, noisy_samples_normed; n_epochs=5, learning_rate=1.0e-3)
 
-p_training = plot(losses, label="training")
+p_training = plot(train_losses, label="train")
+plot!(p_training, valid_losses, label="validation")
 
 denoiser(noisy_samples[:,:,i_sample]) |> cpu
 
