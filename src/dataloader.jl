@@ -1,42 +1,22 @@
-mutable struct DataLoaderLES{T}
-    data::AbstractArray{T,3}
-    batchsize::Int
-    σ_noise::T
-    data_order::Vector{Int}
-end
 
-function DataLoaderLES(data::AbstractArray{T,3}; batchsize = 100, σ_noise = 0.5) where T
-    batchsize > 0 || throw(ArgumentError("Need positive batchsize"))
-
-    data_order = shuffle(1:size(data)[2])
-    DataLoaderLES(data, batchsize, T(σ_noise), data_order)
-end
-
-function _getSlice(data::AbstractArray{D,3}, i::Int) where {D}
-    # TODO: add random offset here and pick a random axis between y and x-axis
-    data[:, i, :]
-end
-
-# required functions to support iteration
-Base.length(dl::DataLoaderLES) = size(dl.data)[2]
-
-
-function Base.iterate(dl::DataLoaderLES, i = 0)
-    if i == 0
-        dl.data_order = shuffle(1:length(dl))
+function create_dataloader(data::AbstractArray{T,N}; σ=0.1, obs_dim=:last, test_valid_fraction=0.9) where {N,T}
+    @show typeof(data) T
+    if obs_dim != :last
+        dims = collect(1:ndims(data))
+        # make the correct obs dim the last one, because that's what Flux.DataLoader assumes
+        dims[obs_dim], dims[end] = dims[end], dims[obs_dim]
+        data = permutedims(data, dims)
     end
 
-    if i >= length(dl)
-        return nothing
+    if ndims(data) == 3
+        data = unsqueeze(data; dims=3)
+    elseif ndims(data) != 4
+        throw("need data to be 3D or 4D (ie with batch dim already")
     end
-
-    indecies = rand(1:size(dl.data)[2], dl.batchsize)
-    srcdata_batch = cat([_getSlice(dl.data, dl.data_order[idx]) for idx in indecies]...; dims = 3)
-    # add channel dimension
-    y_batch = unsqueeze(srcdata_batch; dims=3)
-    # In predicition the convolutions mean we can't predict the edge
-    x_batch = add_noise.(y_batch; σ = dl.σ_noise)
-
-    batch = (x_batch, y_batch)
-    return (batch, i + 1)
+    
+    data_train, data_test = splitobs(shuffleobs(data); at=test_valid_fraction)
+    
+    dl_train = Flux.DataLoader(data_train)
+    dl_test = Flux.DataLoader(data_test)
+    return dl_train, dl_test
 end

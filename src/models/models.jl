@@ -2,15 +2,17 @@ module Models
 
 using Flux
 using CUDA
-using Flux: pad_zeros, MaxPool, Conv, SamePad
-using Flux: leakyrelu, ConvTranspose, Chain, SkipConnection
-using Base: split
+using MLUtils
+using Flux
 
 
-include("ssdn.jl")
-include("linear.jl")
-include("utils.jl")
 
-export rotr90
+include("general.jl")
+#include("ssdn.jl")
+#include("linear.jl")
+include("supervised.jl")
+
+export LinearDenoiser, Noise2CleanDenoiser, Noise2NoiseDenoiser, LaineSelfSupervisedDenoiser
+export train!
 
 end

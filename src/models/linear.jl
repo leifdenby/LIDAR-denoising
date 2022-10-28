@@ -1,3 +1,3 @@
-function Linear(;conv_size=1)
-    return Conv((conv_size, conv_size), 1 => 1, identity, pad=1)
+function Linear(n_features_in, n_features_out)
+    return Conv((1, 1), n_features_in => n_features_out, identity, pad=0)
 end

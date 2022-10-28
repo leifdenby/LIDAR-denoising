@@ -8,7 +8,7 @@ using CUDA
 using Flux
 using NCDatasets
 using Random: shuffle
-using MLUtils: unsqueeze
+using MLUtils: unsqueeze, splitobs, shuffleobs
 using Plots: plot, heatmap, savefig
 
 # store gpu/cpu device into `_device` variable, can't use name `device` since CUDA exports that
