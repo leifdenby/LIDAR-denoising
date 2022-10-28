@@ -18,7 +18,7 @@ end
 """
 return the device (gpu/cpu) that a denoiser is stored on
 """
-function device(denoiser)
+function device(denoiser::AbstractDenoiser)
     if Flux.params(denoiser)[1] isa CuArray
         return gpu
     else

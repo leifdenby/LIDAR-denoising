@@ -7,7 +7,7 @@ using Flux
 
 
 
-include("general.jl")
+include("common.jl")
 #include("ssdn.jl")
 #include("linear.jl")
 include("supervised.jl")

@@ -12,7 +12,7 @@ using Flux
     # train noisy-clean pairs without known noise
     train!(denoiser, noisy_data, clean_data)
     # do inference with trained model
-    # denoiser(noisy_data)
+    denoiser(noisy_data)
 
     # n2c
     denoiser = Noise2CleanDenoiser(n_layers=2)
@@ -21,7 +21,7 @@ using Flux
     # make noisy samples by adding Gaussian noise to clean samples and train on noisy-clean pairs
     # train!(denoiser, clean_data, :gaussian, σ_noise)
     # do inference with trained model
-    # denoiser(noisy_data)
+    denoiser(noisy_data)
 
     @test_skip @testset "all" begin
         # n2n
