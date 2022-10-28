@@ -20,52 +20,40 @@ function random_crop(data::AbstractArray{T,3}, N::Int) where {T}
     @assert N <= nx && N <= nz && N <= ny
     k0 = 3
     i, j = rand(1:(nx-N)), rand(1:(nz-N))
-    return data[k0:k0+N, i:i+N, j]
+    return data[k0:k0+N-1, i:i+N-1, j]
 end
 
 
 N_samples = 1000
-N_size = 26
+N_size = 32
 clean_samples = stack([random_crop(data, N_size) for i in 1:N_samples], dims=3);
 σ_noise = 0.2 * Statistics.std(clean_samples) 
 noisy_samples = LIDARdenoising.add_noise.(clean_samples, σ=σ_noise)
+noisy_samples2 = LIDARdenoising.add_noise.(clean_samples, σ=σ_noise)
 
 i_sample = rand(1:size(noisy_samples, 3))
 plot(
     heatmap(clean_samples[:,:,i_sample]),
     heatmap(noisy_samples[:,:,i_sample]),
-    layout=(2,1),
-    size=(400, 800)
+    heatmap(noisy_samples2[:,:,i_sample]),
+    layout=(3,1),
+    size=(400, 1000)
 )
     
 
 noisy_samples_normed = LIDARdenoising.normalize(noisy_samples)
+noisy_samples_normed2 = LIDARdenoising.normalize(noisy_samples2, noisy_samples_normed.mean, noisy_samples_normed.std)
 clean_samples_normed = LIDARdenoising.normalize(clean_samples, noisy_samples_normed.mean, noisy_samples_normed.std)
 
-function baseline_error(clean_samples_normed, noisy_samples_normed; model=nothing)
-    dl = LIDARdenoising.Models.create_dataloader((noisy_samples_normed, clean_samples_normed))
-    total_error = 0f0
-    for (y_noisy, y_clean) in dl
-        @show size(y_noisy) size(y_clean)
-        if model === nothing
-            total_error += Flux.Losses.mse(y_noisy, y_clean)
-        else
-            total_error += Flux.Losses.mse(model(y_noisy), y_clean)
-        end
-    end
-    total_error / length(dl)
-end
-
-denoiser = DnCNN(n_layers=10, train_residual=false) |> gpu
+#denoiser = DnCNN(n_layers=10, train_residual=false) |> gpu
 
 #denoiser = LinearDenoiser(Conv((3, 3), 1 => 1, identity, pad=SamePad()))
 #denoiser = Noise2CleanDenoiser(n_layers=4) |> gpu
-losses = train!(denoiser, clean_samples_normed, noisy_samples_normed; n_epochs=100, learning_rate=1.0e-3)
+denoiser = Noise2Noise() |> gpu
+losses = train!(denoiser, noisy_samples_normed, noisy_samples_normed2; n_epochs=5, learning_rate=1.0e-4)
+#losses = train!(denoiser, clean_samples_normed, noisy_samples_normed; n_epochs=5, learning_rate=1.0e-3)
 
-b_err = baseline_error(clean_samples_normed, noisy_samples_normed)
-b_err = baseline_error(clean_samples_normed, noisy_samples_normed)
-p_training = plot(losses, label="training", ylim=(0, 4*b_err))
-hline!(p_training, [b_err])
+p_training = plot(losses, label="training")
 
 denoiser(noisy_samples[:,:,i_sample]) |> cpu
 
@@ -101,3 +89,22 @@ mod = denoiser2.model
 
 
 plot_sample(denoiser2)
+
+
+function baseline_error(clean_samples_normed, noisy_samples_normed; model=nothing)
+    dl = LIDARdenoising.Models.create_dataloader((noisy_samples_normed, clean_samples_normed))
+    total_error = 0f0
+    for (y_noisy, y_clean) in dl
+        @show size(y_noisy) size(y_clean)
+        if model === nothing
+            total_error += Flux.Losses.mse(y_noisy, y_clean)
+        else
+            total_error += Flux.Losses.mse(model(y_noisy), y_clean)
+        end
+    end
+    total_error / length(dl)
+end
+
+b_err = baseline_error(clean_samples_normed, noisy_samples_normed)
+b_err = baseline_error(clean_samples_normed, noisy_samples_normed)
+hline!(p_training, [b_err])

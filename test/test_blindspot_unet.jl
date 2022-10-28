@@ -1,5 +1,5 @@
 using Test
-using LIDARdenoising.Models: HalfPlane, halfplane_offset, SSDN, rotate_hw
+using LIDARdenoising.Models: HalfPlane, halfplane_offset, BlindspotUNet, rotate_hw
 using LIDARdenoising
 using Flux: MaxPool, SamePad, identity, Conv
 using Flux: gpu
@@ -86,18 +86,18 @@ end
     @test rotate_hw(a, 90) == rotate_hw(a, -270)
 end
 
-@testset "ssdn ($(n_layers) layers)" for n_layers in [1, 2]
+@testset "N-dimensional array rotations" begin
+    a = randn((10, 10, 3, 4)) |> _device
+    @test permutedims(a[end:-1:begin, :, :, :], (2,1,3,4)) == rotr90fast(a)
+    @test mapslices(rotr90, a, dims=(1,2)) == rotr90(a; axes=(1,2))
+    @test mapslices(rotr90, a, dims=(3,4)) == rotr90(a; axes=(3,4))
+end
+
+@testset "BlindspotUNet ($(n_layers) layers)" for n_layers in [1, 2]
     n_features_in, n_features_out = 1, 1
     model = SSDN(n_features_in, n_layers, n_features_out)
     x = randn(Float32, (64, 64, 1, 1))
     # we're using "same"-padding throughout (as in Laine 2019) so the shape of
     # the output should be the same as the input
     @test size(model(x)) == size(x)
-end
-
-@testset "N-dimensional array rotations" begin
-    a = randn((10, 10, 3, 4)) |> _device
-    @test permutedims(a[end:-1:begin, :, :, :], (2,1,3,4)) == rotr90fast(a)
-    @test mapslices(rotr90, a, dims=(1,2)) == rotr90(a; axes=(1,2))
-    @test mapslices(rotr90, a, dims=(3,4)) == rotr90(a; axes=(3,4))
 end

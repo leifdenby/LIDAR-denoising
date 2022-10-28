@@ -63,7 +63,7 @@ end
 
 """
     (c::HalfPlane)(x)
-Apply half-plane operation to x
+Apply half-plane operation c to x
 """
 function (c::HalfPlane)(x::AbstractArray{T}) where T
     # need to create a copy here (and not just a view) otherwise
@@ -104,16 +104,19 @@ unrotate = Chain(
 # Base.split(x::AbstractArray{T}, d) where T = [selectdim(x, i, d) for i in 1:size(x, d)]
 
 
-function SSDN(nc_in, n_levels, n_out_features)
+"""
+Create a "Blindspot" UNet where the receptive field of each output pixels
+excludes the pixel at the same position in the input
+"""
+function BlindspotUNet(n_levels, channels; act=leakyrelu, n_hd=1)
     # make "lower" level in the Unet be a no-op by default
-    lower_level = Conv((1, 1), 1 => 2)
+    lower_level = Conv((1, 1), channels)
 
     # convolution stencil size
     w = 3
     # number of hidden layers immediately after input
     nc_hd = 1
     # activation function
-    act = leakyrelu
 
     for n in 1:n_levels
         layers = Vector{Any}([
@@ -149,7 +152,7 @@ function SSDN(nc_in, n_levels, n_out_features)
     model = Chain(
         # add four rotated copies of input images along batch dimension
         rotated_stack,
-        HalfPlane( Conv((w,w), nc_in => nc_hd, act, pad=SamePad()), 1),
+        HalfPlane( Conv((w,w), channels.first => nc_hd, act, pad=SamePad()), 1),
         lower_level,
         # TODO: need inverse of half-plane offset here
         unrotate,
@@ -157,7 +160,7 @@ function SSDN(nc_in, n_levels, n_out_features)
         # so we gain x4 the number of channels. After this we no longer need
         # half-plane convolutions
         Conv((1,1), 4*2*nc_hd => 2*nc_hd, act, pad=SamePad()),
-        Conv((1,1), 2*nc_hd => n_out_features, act, pad=SamePad()),
+        Conv((1,1), 2*nc_hd => channels.last, act, pad=SamePad()),
     )
     return model
 end
