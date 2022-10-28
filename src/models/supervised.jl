@@ -15,7 +15,9 @@ Flux.@functor LinearDenoiser
 # constructor
 LinearDenoiser() = LinearDenoiser(Conv((1, 1), 1 => 1, pad=0))
 # inference call
-(denoiser::LinearDenoiser)(noisy_data) = denoiser.model(noisy_data |> device(denoiser))
+function (denoiser::LinearDenoiser)(noisy_data::AbstractArray{T,4}) where T
+     denoiser.model(noisy_data |> device(denoiser))
+end
 
 
 struct Noise2CleanDenoiser <: SupervisedDenoiser
@@ -31,4 +33,6 @@ function Noise2CleanDenoiser(;n_layers::Int)
     return Noise2CleanDenoiser(model)
 end
 # inference call on trained model
-(denoiser::Noise2CleanDenoiser)(noisy_data) = denoiser.model(noisy_data |> device(denoiser))
+function (denoiser::Noise2CleanDenoiser)(noisy_data::AbstractArray{T,4}) where T
+    denoiser.model(noisy_data |> device(denoiser))
+end
