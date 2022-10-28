@@ -8,11 +8,12 @@ using Flux
 
 
 include("common.jl")
+export train!
+
 #include("ssdn.jl")
 #include("linear.jl")
+#
 include("supervised.jl")
-
-export LinearDenoiser, Noise2CleanDenoiser, Noise2NoiseDenoiser, LaineSelfSupervisedDenoiser
-export train!
+export Noise2CleanDenoiser, DnCNN
 
 end

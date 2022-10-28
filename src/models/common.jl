@@ -34,7 +34,7 @@ end
 general purpose data-loaders for denoising applications
 for denoisers using more than one input/output `data` can be a tuple
 """
-function create_dataloader(data; test_valid_fraction=0.9, batchsize=128) where {N,T}
+function create_dataloader(data; test_valid_fraction=0.9, batchsize=32) where {N,T}
     data_train, data_test = splitobs(shuffleobs(ensure_has_channel_dim(data)); at=test_valid_fraction)
     
     dl_train = Flux.DataLoader(data_train, batchsize=batchsize)
@@ -53,7 +53,7 @@ function device(denoiser::AbstractDenoiser)
     end
 end
 
-function early_stopping(losses; N_steps=8)
+function early_stopping(losses; N_steps=4)
     N_total = length(losses)
     if N_total > N_steps+1
         maximum(losses[N_total-N_steps-1:N_total-1]) < losses[end]
@@ -70,7 +70,8 @@ General-purpose training routine for denoiser
 function train!(denoiser::AbstractDenoiser, dl_train::MLUtils.DataLoader, dl_test::MLUtils.DataLoader; n_epochs=10, learning_rate=1.0e-2)
     @show length(dl_train) length(dl_test)
 
-    opt = Flux.Optimise.Descent(learning_rate)
+    #opt = Flux.Optimise.Descent(learning_rate)
+    opt = Flux.Optimise.Adam(learning_rate)
 
     to_device = device(denoiser)
     # general loss function with any batch contents calling denoiser specific loss
@@ -87,7 +88,7 @@ function train!(denoiser::AbstractDenoiser, dl_train::MLUtils.DataLoader, dl_tes
         @info "loss" avg_loss
         push!(losses, avg_loss)
     end
-    throttled_cb = Flux.throttle(evalcb, 1)
+    throttled_cb = Flux.throttle(evalcb, 2)
 
     for n in 1:n_epochs
         Flux.train!(
