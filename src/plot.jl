@@ -19,28 +19,25 @@ function plot_example(data::GriddedData3D{T}, model, σ_noise, target=nothing; l
     x_grid = data.x
     z_grid = data.z
 
-    fig, axes = PyPlot.subplots(3, 1, sharex=true, sharey=true, figsize=(10, 8))
     vmax = max(maximum(y), maximum(y_noisy), maximum(ŷ))
     vmin = min(minimum(y), minimum(y_noisy), minimum(ŷ))
 
-    for (ax, data_, title) in zip(
-        axes,
+    subplots = []
+    for (data_, title) in zip(
         [y, y_noisy, ŷ],
         ["y (from LES)", "x (added noise)", "ŷ (NN prediction)"]
     )
-        p = ax.pcolormesh(x_grid, z_grid, data_, vmax=vmax, vmin=vmin)
-        cb = PyPlot.colorbar(p, ax = ax)
-        cb.set_label("water vap. [g/kg]")
-        ax.set_xlabel("horz. dist. [m]")
-        ax.set_ylabel("altitude [m]")
-        ax.set_title(title)
+        p_ = heatmap(
+            x_grid, z_grid, data_, colorbar_title="water vap. [g/kg]",
+            xlabel="horz. dist. [m]", ylabel="altitude [m]", title=title,
+            vmin=vmin, vmax=vmax
+        )
+        push!(subplots, p_)
     end
-
-    PyPlot.tight_layout()
-    PyPlot.suptitle("example", y=1.02)
+    p = plot(subplots..., layout=(3, 3), size=(1200, 300))
 
     if target isa String
-        PyPlot.savefig(target)
+        savefig(p, target)
     elseif target isa AbstractLogger
         with_logger(target) do
             @info "$label plot" fig
