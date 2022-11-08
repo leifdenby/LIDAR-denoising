@@ -24,7 +24,7 @@ function random_crop(data::AbstractArray{T,3}, N::Int) where {T}
 end
 
 
-N_samples = 1000
+N_samples = 10
 N_size = 32
 clean_samples = stack([random_crop(data, N_size) for i in 1:N_samples], dims=3);
 σ_noise = 0.2 * Statistics.std(clean_samples) 
@@ -49,14 +49,13 @@ clean_samples_normed = LIDARdenoising.normalize(clean_samples, noisy_samples_nor
 
 #denoiser = LinearDenoiser(Conv((3, 3), 1 => 1, identity, pad=SamePad()))
 #denoiser = Noise2CleanDenoiser(n_layers=4) |> gpu
-denoiser = Noise2Noise() |> gpu
-train_losses, valid_losses = train!(denoiser, noisy_samples_normed, noisy_samples_normed2; n_epochs=15, learning_rate=1.0e-5)
+# denoiser = Noise2Noise() |> gpu
+denoiser = LIDARdenoising.Models.SelfSupervisedDenoiser(n_levels=1) |> gpu
+train_losses, valid_losses = train!(denoiser, noisy_samples_normed; n_epochs=5, learning_rate=1.0e-5)
 #losses = train!(denoiser, clean_samples_normed, noisy_samples_normed; n_epochs=5, learning_rate=1.0e-3)
 
 p_training = plot(train_losses, label="train")
 plot!(p_training, valid_losses, label="validation")
-
-denoiser(noisy_samples[:,:,i_sample]) |> cpu
 
 function plot_sample(denoiser)
     i_sample = rand(1:size(noisy_samples, 3))

@@ -1,17 +1,19 @@
 using Test
-using LIDARdenoising.Models: HalfPlane, halfplane_offset, BlindspotUNet, rotate_hw
+using LIDARdenoising.Models: HalfPlane, halfplane_offset, BlindspotUNet
 using LIDARdenoising
-using Flux: MaxPool, SamePad, identity, Conv
-using Flux: gpu
+using Flux: MaxPool, SamePad, identity, Conv, Chain
+using Flux: gpu, cpu
 
 
 _device = LIDARdenoising._device
+_device = cpu
 
-@testset "half-plane generics" begin
+#@testset "half-plane generics" begin
     nx = 3
     ny = 3
     ns = 3  # size of filter is 3x3
     no = (ns + 1) ÷ 2  # expected offset is 2 to avoid the center
+    no = 1
     ## half-plane operations
     m = Conv((ns,ns), 1=>1, identity) |> _device
     d_op = HalfPlane(m, 1)
@@ -19,38 +21,46 @@ _device = LIDARdenoising._device
     @test halfplane_offset(d_op) == no
     # check that the offsetting is being done correctly
     @test all(selectdim(halfplane_offset(d_op, v1), 1, 1:no) .== 0)
-end
+#end
 
-@testset "half-plane convolutions nx=$nx" for nx in [3, 5]
+#@testset "half-plane convolutions nx=$nx" for nx in [3, 5]
     ny = 3
+    nx = 4
     ns = 3  # size of filter is 3x3
+    
+    _device = cpu
 
     # check that that only the values in the half-plane contribute to the final value
     v2 = randn(Float32, (nx, ny, 1, 1)) |> _device
     offset_conv_xdim = HalfPlane( Conv((ns,ns),1=>1, identity, pad=0), 1) |> _device
+    offset_conv_ydim = HalfPlane( Conv((ns,ns),1=>1, identity, pad=0), 2) |> _device
     offset_conv_xdim_pad1 = HalfPlane( Conv((ns,ns),1=>1, identity, pad=1), 1) |> _device
     offset_conv_xdim_samepad = HalfPlane( Conv((ns,ns),1=>1, identity, pad=SamePad()), 1) |> _device
-    offset_conv_ydim = HalfPlane( Conv((ns,ns),1=>1, identity, pad=0),2 ) |> _device
     # all operators have same stencil size, so we can just calculate the offset once
     no = halfplane_offset(offset_conv_xdim)
 
-    # change the values for the values that sholdn't effect the result
+    # change the values for the part of the arrays that sholdn't effect the result
     v2_xmod = copy(v2)
     v2_xmod[nx-no+1:nx,:,:,:] .= 1
     v2_ymod = copy(v2)
     v2_ymod[:,ny-no+1:ny,:,:] .= 1 
 
+    offset_conv_xdim(v2)
+    offset_conv_xdim(v2_xmod)
+
     @test offset_conv_xdim(v2) == offset_conv_xdim(v2_xmod)
     @test offset_conv_ydim(v2) == offset_conv_ydim(v2_ymod)
     @test offset_conv_xdim_pad1(v2) == offset_conv_xdim_pad1(v2_xmod)
     @test offset_conv_xdim_samepad(v2) == offset_conv_xdim_samepad(v2_xmod)
+    offset_conv_xdim_samepad(v2)
+    offset_conv_xdim_samepad(v2_xmod)
 
     # next we'll check the shapes against just applying the underlying
     # convolutions without offsetting (which creates the half-planes)
     @test size(offset_conv_xdim(v2)) == size(offset_conv_xdim.op(v2))
     @test size(offset_conv_xdim_pad1(v2)) == size(offset_conv_xdim_pad1.op(v2))
     @test size(offset_conv_xdim_samepad(v2)) == size(offset_conv_xdim_samepad.op(v2))
-end
+#end
 
 @testset "half-plane max-pool" begin
     nx = 5
@@ -101,3 +111,21 @@ end
     # the output should be the same as the input
     @test size(model(x)) == size(x)
 end
+
+n_features_in, n_features_out = 1, 1
+denoiser = LIDARdenoising.Models.SelfSupervisedDenoiser(n_levels=1)
+x = round.(randn(Float32, (16, 16, 1, 1)); digits=2)
+x2 = copy(x)
+x2[9,9,:,:] .-= 5.0
+x - x2
+(denoiser(x) - denoiser(x2) .== 0.0)
+# we're using "same"-padding throughout (as in Laine 2019) so the shape of
+# the output should be the same as the input
+@test size(denoiser(x)) == size(x)
+
+HalfPlaneShiftOp
+x = randn(Float32, (4, 4, 1, 1))
+op = LIDARdenoising.Models.HalfPlaneShiftOp(1, 2)
+op(x)
+
+
