@@ -38,6 +38,8 @@ function R_differenced(y::Vector{T}, q::Int) where T
     return d, dprime
 end
 
+@edit mean(rand(Float32, (10,)))
+
 N = 40
 N_step = 10
 i = 1:N
@@ -215,34 +217,81 @@ using NetCDF
 
 sample_arr = transpose(ncread("scripts/sample_long.nc", "WaterVaporMixingRatio"))[:,1:12_000]
 sample_arr = transpose(ncread("scripts/sample_long.nc", "WaterVaporMixingRatio"))[:,12_000:24_000]
+sample_arr = transpose(ncread("scripts/sample_long.nc", "WaterVaporMixingRatio"))[:,30_000:42_000]
 alt = transpose(ncread("scripts/sample_long.nc", "alt"))[:]
 #sample_arr = transpose(ncread("scripts/sample(1).nc", "WaterVaporMixingRatio"))[:,1:6300]
 heatmap(sample_arr)
 
-function do_slice(;wi=3000,wl=3500)
-    y_sample = sample_arr[10,:]
-    plot(y_sample)
-    y_kza = kza1d(y_sample, Int(240 // 4))
-    plot!(y_kza, color=:red)
+"""
+t_win: KZA window in seconds
+"""
+function do_slice(;k_idx=20, t_win=240, wi=3000,wl=2000)
+    # sliced window with alt and dist
+    xt = collect(1:wl+1) * 4 * 10 # [m]
+    xt_units = "m"
+
+    if maximum(xt) > 2000
+        xt = Float64.(xt) ./ 1000
+        xt_units = "km"
+    end
+
+    y_sample = sample_arr[k_idx,:]
+    p_sample = plot(xt, y_sample[wi:wi+wl], link=:x, ylabel="qv [g/kg]\n@ z=$(alt[k_idx])m")
+    y_kza = kza1d(y_sample, Int(ceil(t_win // 4)))
+    plot!(p_sample, xt, y_kza[wi:wi+wl], color=:red)
 
     sample_rel = copy(sample_arr)
     for ti in 1:length(y_kza)
         sample_rel[:,ti] .-= y_kza[ti]
     end
 
-    # sliced window with alt and dist
-    xt = collect(1:wl+1) * 4 * 10 # [m]
-    plot(
-        heatmap(xt, alt, sample_arr[:,wi:wi+wl]),
-        heatmap(xt, alt, sample_arr[:,wi:wi+wl] .> 15.5),
-        heatmap(xt, alt, sample_rel[:,wi:wi+wl], clim=(-1, 1), c=:balance),
-        heatmap(xt, alt, sample_rel[:,wi:wi+wl] .> 0.2),
-        layout=(4,1),
+    p = plot(
+        heatmap(xt, alt, sample_arr[:,wi:wi+wl], link=:x, title="denoised output", ylabel="alt [m]"),
+        heatmap(xt, alt, sample_arr[:,wi:wi+wl] .> 15.5, title="mask from denoised data", ylabel="alt [m]"),
+        p_sample,
+        heatmap(xt, alt, sample_rel[:,wi:wi+wl], clim=(-1.5, 1.5), c=:balance, title="ambient subtracted", ylabel="alt [m]"),
+        heatmap(xt, alt, sample_rel[:,wi:wi+wl] .> 0.2, xlabel="approximate distance [$(xt_units)]", title="mask from relative to ambient", ylabel="alt [m]"),
+        layout=(5,1),
         size=(1200, 800),
+        plot_title="Δt_w=$(t_win)s z=$(alt[k_idx])m (k=$(k_idx))",
+        leftmargin=5Plots.mm
     )
+    savefig(p, "qv.example.win_$(t_win)s.png")
+    return p
 end
 
-do_slice()
+do_slice(;t_win=4, wl=500, k_idx=20) # 4s
+do_slice(;t_win=15, wl=500, k_idx=20) # 15s
+do_slice(;t_win=30, wl=500, k_idx=20) # 30s
+do_slice(;t_win=60, wl=500, k_idx=20) # 1min
+do_slice(;t_win=120, wl=500, k_idx=20) # 2min
+
+do_slice(;t_win=60, wl=1000, k_idx=20) # 1min
+do_slice(;t_win=120, wl=1000, k_idx=20) # 2min
+do_slice(;t_win=480, wl=1000, k_idx=20) # 8min
+do_slice(;t_win=1720, wl=1000, k_idx=20) # 32min
+do_slice(;t_win=1720, wl=1000, k_idx=20) # 32min
+do_slice(;t_win=7200, wl=1000, k_idx=20) # 2hrs
+
+do_slice(;t_win=8) # 8s
+do_slice(;t_win=15) # 15s
+do_slice(;t_win=30) # 30s
+do_slice(;t_win=60) # 1min
+do_slice(;t_win=120) # 2min
+do_slice(;t_win=240) # 4min
+do_slice(;t_win=480) # 8min
+do_slice(;t_win=960) # 16min
+do_slice(;t_win=1720) # 32min
+
+p = plot(sample_arr[10,2000:4000])
+plot!(p, sample_arr[20,2000:4000])
+y_kza = kza1d(sample_arr[10,2000:4000], Int(ceil(240 // 4)))
+plot!(p, y_kza)
+plot(
+    heatmap(sample_arr[:,2000:4000]),
+    p,
+    layout=(2,1)
+)
 
 y_sample = sample_arr[28,:]
 plot(y_sample)
@@ -256,7 +305,7 @@ using ProgressMeter
 
 windows = 2:240
 windows = 120:5:1200
-#@showprogress for n in [2:10:600; 600:100:6000]
+windows = [2:10:600; 600:100:6000]
 variances = []
 @showprogress for w in windows
     y_kza = kza1d(y_sample, w)
